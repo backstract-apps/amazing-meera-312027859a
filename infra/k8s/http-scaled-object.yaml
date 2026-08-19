@@ -1,0 +1,24 @@
+kind: HTTPScaledObject
+apiVersion: http.keda.sh/v1alpha1
+metadata:
+  name: amazing-meera-312027859a-scaler
+  namespace: apps-release
+spec:
+  hosts:
+    - cc1fbde45ead-in-south-01.mayson.dev
+  pathPrefixes:
+    - /us-west-2-backstractelb-03674b-coll-4796f94899164651b322b5f254d9ed39/ # e.g. /infallible-naveen-... amazing-meera-312027859a/
+  scaleTargetRef:
+    name: amazing-meera-312027859a-depl
+    kind: Deployment
+    apiVersion: apps/v1
+    service: amazing-meera-312027859a-srv # e.g. coll-8a2a...-srv
+    port: 80
+  replicas:
+    min: 0
+    max: 10
+  scaledownPeriod: 1800 #inseconds
+  scalingMetric:
+    requestRate:
+      targetValue: 100
+      window: 1m
