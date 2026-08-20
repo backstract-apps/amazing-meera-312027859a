@@ -6,17 +6,17 @@ metadata:
 data:
   alloy.river: |
     logging {
-      level  = "debug"
+      level  = "info"
       format = "logfmt"
     }
 
-    // OTLP Receiver for traces, metrics, and logs from the application SDK
+    // Direct in-pod OTLP Receiver
     otelcol.receiver.otlp "app_otlp" {
       grpc {
-        endpoint = "0.0.0.0:4317"
+        endpoint = "127.0.0.1:4317"
       }
       http {
-        endpoint = "0.0.0.0:4318"
+        endpoint = "127.0.0.1:4318"
       }
       output {
         metrics = [otelcol.processor.batch.default.input]
@@ -24,29 +24,6 @@ data:
       }
     }
 
-    // Kubernetes Pod Discovery
-    discovery.kubernetes "pods" {
-      role = "pod"
-    }
-
-    // Relabel discovered pod targets to filter by container name
-    discovery.relabel "filtered_pods" {
-      targets = discovery.kubernetes.pods.targets
-
-      rule {
-        source_labels = ["__meta_kubernetes_pod_container_name"]
-        regex         = "amazing-meera-312027859a"
-        action        = "keep"
-      }
-    }
-
-    // Kubernetes Logs Source
-    loki.source.kubernetes "app_logs" {
-      targets    = discovery.relabel.filtered_pods.output
-      forward_to = [loki.write.main.receiver]
-    }
-
-    // Batch processor
     otelcol.processor.batch "default" {
       timeout         = "1s"
       send_batch_size = 1024
@@ -56,12 +33,10 @@ data:
       }
     }
 
-    // Loki Exporter (for OTLP logs)
     otelcol.exporter.loki "default" {
       forward_to = [loki.write.main.receiver]
     }
 
-    // Loki Writer
     loki.write "main" {
       endpoint {
         url = "https://loki.backstract.io/loki/api/v1/push"
@@ -72,7 +47,6 @@ data:
       }
     }
 
-    // Prometheus Exporter
     otelcol.exporter.prometheus "default" {
       forward_to = [prometheus.remote_write.main.receiver]
     }
