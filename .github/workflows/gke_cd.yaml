@@ -51,19 +51,28 @@ jobs:
           location: ${{ env.GKE_REGION }}
 
       - name: Provision Secrets & ECR Credentials in GKE
+        env:
+          RAW_ENV: ${{ secrets.K8S_ENV_FILE }}
         run: |
           kubectl get ns ${{ env.NAMESPACE }} || kubectl create ns ${{ env.NAMESPACE }}
-
+      
           ECR_PASS=$(aws ecr get-login-password --region ${{ env.AWS_REGION }})
           kubectl create secret docker-registry aws-ecr-creds \
             --docker-server=${{ env.ECR_REGISTRY }} \
             --docker-username=AWS \
-            --docker-password=$ECR_PASS \
+            --docker-password="$ECR_PASS" \
             --namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
-
-          echo "${{ secrets.K8S_ENV_FILE }}" > .env
+      
+          # Write secret to file, convert CRLF to LF, and strip empty lines/comments
+          printf "%s\n" "$RAW_ENV" | tr -d '\r' | sed '/^[[:space:]]*$/d' | grep -v '^[[:space:]]*#' > .env
+      
           kubectl create secret generic app-secrets-coll-4796f94899164651b322b5f254d9ed39 \
-            --namespace ${{ env.NAMESPACE }} --from-env-file=.env --dry-run=client -o yaml | kubectl apply -f -
+            --namespace ${{ env.NAMESPACE }} \
+            --from-env-file=.env \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Clean up local file
+          rm -f .env
 
       - name: Sanitize Manifests for GKE
         env:
