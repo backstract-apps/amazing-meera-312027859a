@@ -74,9 +74,9 @@ spec:
                 name: app-resources-secrets-coll-4796f94899164651b322b5f254d9ed39
                 optional: true
           ports:
-            - containerPort: 8080
+            - containerPort: 7070
               name: http
-            - containerPort: 8080
+            - containerPort: 7070
               name: metrics
           resources:
             requests:
