@@ -52,10 +52,12 @@ jobs:
 
       - name: Provision Secrets & ECR Credentials in GKE
         env:
-          RAW_ENV: ${{ secrets.K8S_ENV_FILE }}
+          K8S_ENV_SECRET_B64: ${{ secrets.K8S_ENV_FILE }}
         run: |
+          # Ensure target namespace exists
           kubectl get ns ${{ env.NAMESPACE }} || kubectl create ns ${{ env.NAMESPACE }}
       
+          # Create/Update AWS ECR pull secret
           ECR_PASS=$(aws ecr get-login-password --region ${{ env.AWS_REGION }})
           kubectl create secret docker-registry aws-ecr-creds \
             --docker-server=${{ env.ECR_REGISTRY }} \
@@ -63,13 +65,17 @@ jobs:
             --docker-password="$ECR_PASS" \
             --namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
       
-          # Write secret to file, convert CRLF to LF, and strip empty lines/comments
-          printf "%s\n" "$RAW_ENV" | tr -d '\r' | sed '/^[[:space:]]*$/d' | grep -v '^[[:space:]]*#' > .env
+          # Safely decode the Base64 secret into the temporary .env file
+          echo "$K8S_ENV_SECRET_B64" | base64 --decode > .env
       
+          # Create/Update App Environment Secrets in GKE
           kubectl create secret generic app-secrets-coll-4796f94899164651b322b5f254d9ed39 \
             --namespace ${{ env.NAMESPACE }} \
             --from-env-file=.env \
             --dry-run=client -o yaml | kubectl apply -f -
+      
+          # Clean up local file
+          rm -f .env
           
           # Clean up local file
           rm -f .env
